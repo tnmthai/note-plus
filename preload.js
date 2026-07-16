@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Session persistence
   saveSession: (data) => ipcRenderer.invoke('save-session', data),
+  saveSessionSync: (data) => ipcRenderer.sendSync('save-session-sync', data),
   loadSession: () => ipcRenderer.invoke('load-session'),
 
   // Window controls

@@ -63,7 +63,6 @@ require(['vs/editor/editor.main'], () => {
   });
 
   // Track modifications
-  let saveTimeout;
   editor.onDidChangeModelContent(() => {
     if (activeTabId !== null) {
       const tab = tabs.find((t) => t.id === activeTabId);
@@ -73,9 +72,30 @@ require(['vs/editor/editor.main'], () => {
       }
     }
     updateFindCount();
-    // Debounce session save
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(autoSaveSession, 500);
+    // Save session immediately on every change
+    autoSaveSession();
+  });
+
+  // Save session before page unload
+  window.addEventListener('beforeunload', () => {
+    if (activeTabId !== null && editor) {
+      const tab = tabs.find((t) => t.id === activeTabId);
+      if (tab) {
+        tab.content = editor.getValue();
+      }
+    }
+    // Synchronous save to ensure data is written before app closes
+    window.api.saveSessionSync({
+      tabs: tabs.map(t => ({
+        filePath: t.filePath,
+        name: t.name,
+        content: t.content,
+        language: t.language,
+        modified: t.modified,
+      })),
+      activeTabId,
+      isDarkTheme,
+    });
   });
 
   // Create first tab or restore session

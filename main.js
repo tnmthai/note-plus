@@ -312,6 +312,15 @@ ipcMain.handle('save-session', async (event, sessionData) => {
   }
 });
 
+ipcMain.on('save-session-sync', (event, sessionData) => {
+  try {
+    fs.writeFileSync(getSessionPath(), JSON.stringify(sessionData, null, 2));
+    event.returnValue = true;
+  } catch {
+    event.returnValue = false;
+  }
+});
+
 ipcMain.handle('load-session', async () => {
   try {
     const data = fs.readFileSync(getSessionPath(), 'utf-8');
