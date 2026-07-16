@@ -39,6 +39,9 @@ function createWindow() {
     }
   });
 
+  mainWindow.on('maximize', () => mainWindow.webContents.send('window-maximize-changed', true));
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-maximize-changed', false));
+
   buildMenu();
 }
 
@@ -334,9 +337,6 @@ ipcMain.handle('window-maximize', () => {
 });
 ipcMain.handle('window-close', () => mainWindow.close());
 ipcMain.handle('window-is-maximized', () => mainWindow.isMaximized());
-
-mainWindow.on('maximize', () => mainWindow.webContents.send('window-maximize-changed', true));
-mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-maximize-changed', false));
 
 app.whenReady().then(createWindow);
 
