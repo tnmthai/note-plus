@@ -13,6 +13,8 @@ function createWindow() {
     minHeight: 400,
     title: 'Note+',
     icon: path.join(__dirname, 'src', 'icon.png'),
+    frame: false,
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -320,6 +322,21 @@ ipcMain.handle('load-session', async () => {
     return null;
   }
 });
+
+// Window controls
+ipcMain.handle('window-minimize', () => mainWindow.minimize());
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+});
+ipcMain.handle('window-close', () => mainWindow.close());
+ipcMain.handle('window-is-maximized', () => mainWindow.isMaximized());
+
+mainWindow.on('maximize', () => mainWindow.webContents.send('window-maximize-changed', true));
+mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-maximize-changed', false));
 
 app.whenReady().then(createWindow);
 

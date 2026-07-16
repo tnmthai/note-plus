@@ -546,6 +546,20 @@ window.api.onMenuZoomOut(() => zoomOut());
 window.api.onMenuZoomReset(() => zoomReset());
 window.api.onMenuToggleTheme(() => toggleTheme());
 
+// Window controls
+document.getElementById('btn-minimize').addEventListener('click', () => window.api.windowMinimize());
+document.getElementById('btn-maximize').addEventListener('click', () => window.api.windowMaximize());
+document.getElementById('btn-close').addEventListener('click', () => window.api.windowClose());
+
+window.api.onWindowMaximizeChanged((isMaximized) => {
+  const btn = document.getElementById('btn-maximize');
+  if (isMaximized) {
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="2" y="0" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1"/><path d="M0 3h2v-3h7v2" fill="none" stroke="currentColor" stroke-width="1"/></svg>';
+  } else {
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1"/></svg>';
+  }
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {

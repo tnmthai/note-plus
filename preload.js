@@ -12,6 +12,13 @@ contextBridge.exposeInMainWorld('api', {
   saveSession: (data) => ipcRenderer.invoke('save-session', data),
   loadSession: () => ipcRenderer.invoke('load-session'),
 
+  // Window controls
+  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
+  windowMaximize: () => ipcRenderer.invoke('window-maximize'),
+  windowClose: () => ipcRenderer.invoke('window-close'),
+  windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  onWindowMaximizeChanged: (cb) => ipcRenderer.on('window-maximize-changed', (e, val) => cb(val)),
+
   // Menu events
   onMenuNew: (cb) => ipcRenderer.on('menu-new', cb),
   onMenuOpen: (cb) => ipcRenderer.on('menu-open', cb),
