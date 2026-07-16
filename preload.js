@@ -1,0 +1,31 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('api', {
+  // File dialogs
+  openFile: () => ipcRenderer.invoke('dialog-open'),
+  saveFile: (data) => ipcRenderer.invoke('dialog-save', data),
+  saveFileAs: (data) => ipcRenderer.invoke('dialog-save-as', data),
+  readFile: (path) => ipcRenderer.invoke('read-file', path),
+  getFileStats: (path) => ipcRenderer.invoke('get-file-stats', path),
+
+  // Session persistence
+  saveSession: (data) => ipcRenderer.invoke('save-session', data),
+  loadSession: () => ipcRenderer.invoke('load-session'),
+
+  // Menu events
+  onMenuNew: (cb) => ipcRenderer.on('menu-new', cb),
+  onMenuOpen: (cb) => ipcRenderer.on('menu-open', cb),
+  onMenuOpenFile: (cb) => ipcRenderer.on('menu-open-file', (e, path) => cb(path)),
+  onMenuSave: (cb) => ipcRenderer.on('menu-save', cb),
+  onMenuSaveAs: (cb) => ipcRenderer.on('menu-save-as', cb),
+  onMenuPrint: (cb) => ipcRenderer.on('menu-print', cb),
+  onMenuFind: (cb) => ipcRenderer.on('menu-find', cb),
+  onMenuReplace: (cb) => ipcRenderer.on('menu-replace', cb),
+  onMenuGoto: (cb) => ipcRenderer.on('menu-goto', cb),
+  onMenuWordWrap: (cb) => ipcRenderer.on('menu-wordwrap', (e, val) => cb(val)),
+  onMenuMinimap: (cb) => ipcRenderer.on('menu-minimap', (e, val) => cb(val)),
+  onMenuZoomIn: (cb) => ipcRenderer.on('menu-zoom-in', cb),
+  onMenuZoomOut: (cb) => ipcRenderer.on('menu-zoom-out', cb),
+  onMenuZoomReset: (cb) => ipcRenderer.on('menu-zoom-reset', cb),
+  onMenuToggleTheme: (cb) => ipcRenderer.on('menu-toggle-theme', cb),
+});

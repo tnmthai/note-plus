@@ -1,0 +1,46 @@
+{
+  "name": "note-plus",
+  "version": "1.0.0",
+  "description": "Note+ - A lightweight cross-platform text editor built with Electron and Monaco Editor",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder --win --mac"
+  },
+  "author": "Thai Tran <me@tnmthai.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.52.0"
+  },
+  "build": {
+    "appId": "com.tnmthai.note-plus",
+    "productName": "Note+",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "node_modules/monaco-editor/**/*"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "src/icon.ico",
+      "sign": false,
+      "signAndEditExecutable": false
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "src/icon.icns",
+      "category": "public.app-category.developer-tools"
+    }
+  }
+}

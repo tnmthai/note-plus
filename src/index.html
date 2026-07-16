@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
+  <title>Note+</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Tab bar -->
+  <div id="tab-bar">
+    <div id="tabs"></div>
+    <button id="new-tab-btn" title="New Tab">+</button>
+  </div>
+
+  <!-- Editor -->
+  <div id="editor-container">
+    <div id="editor"></div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <span id="status-file">Untitled</span>
+    <span id="status-info">
+      <span id="status-lang">Plain Text</span>
+      <span id="status-pos">Ln 1, Col 1</span>
+      <span id="status-encoding">UTF-8</span>
+      <span id="status-eol">LF</span>
+    </span>
+  </div>
+
+  <!-- Find/Replace bar -->
+  <div id="find-bar" class="hidden">
+    <div class="find-row">
+      <input type="text" id="find-input" placeholder="Find..." />
+      <label><input type="checkbox" id="find-case"> Aa</label>
+      <label><input type="checkbox" id="find-whole"> Ab</label>
+      <label><input type="checkbox" id="find-regex"> .*</label>
+      <span id="find-count"></span>
+      <button id="find-prev" title="Previous">▲</button>
+      <button id="find-next" title="Next">▼</button>
+      <button id="find-close" title="Close">✕</button>
+    </div>
+    <div class="find-row" id="replace-row">
+      <input type="text" id="replace-input" placeholder="Replace..." />
+      <button id="replace-one">Replace</button>
+      <button id="replace-all">All</button>
+    </div>
+  </div>
+
+  <!-- Go to line dialog -->
+  <div id="goto-dialog" class="hidden">
+    <div class="goto-box">
+      <label>Line number:</label>
+      <input type="number" id="goto-input" min="1" />
+      <button id="goto-go">Go</button>
+      <button id="goto-close">✕</button>
+    </div>
+  </div>
+
+  <script src="../node_modules/monaco-editor/min/vs/loader.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
