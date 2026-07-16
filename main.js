@@ -1,9 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
 let openFiles = new Map(); // path -> { content, mtime }
+let updateDownloaded = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -58,6 +60,12 @@ function buildMenu() {
         {
           label: 'Open Recent',
           submenu: getRecentFilesMenu(),
+        },
+        { type: 'separator' },
+        {
+          label: 'Compare Files',
+          accelerator: 'CmdOrCtrl+Shift+C',
+          click: () => mainWindow.webContents.send('menu-compare'),
         },
         { type: 'separator' },
         {
@@ -147,10 +155,15 @@ function buildMenu() {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About Note+',
-              message: 'Note+ v1.0.0',
+              message: 'Note+ v1.1.0',
               detail: 'Author: Thai Tran <me@tnmthai.com>',
             });
           },
+        },
+        { type: 'separator' },
+        {
+          label: 'Check for Updates...',
+          click: () => autoUpdater.checkForUpdates(),
         },
       ],
     },
@@ -159,6 +172,44 @@ function buildMenu() {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 }
+
+// Auto-updater
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+autoUpdater.on('checking-for-update', () => {
+  mainWindow.webContents.send('update-status', { type: 'checking' });
+});
+
+autoUpdater.on('update-available', (info) => {
+  mainWindow.webContents.send('update-status', {
+    type: 'available',
+    version: info.version,
+  });
+});
+
+autoUpdater.on('update-not-available', () => {
+  mainWindow.webContents.send('update-status', { type: 'not-available' });
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  mainWindow.webContents.send('update-status', {
+    type: 'progress',
+    percent: Math.round(progress.percent),
+  });
+});
+
+autoUpdater.on('update-downloaded', () => {
+  updateDownloaded = true;
+  mainWindow.webContents.send('update-status', { type: 'downloaded' });
+});
+
+autoUpdater.on('error', (err) => {
+  mainWindow.webContents.send('update-status', {
+    type: 'error',
+    message: err.message,
+  });
+});
 
 function getRecentFilesMenu() {
   const recentPath = path.join(app.getPath('userData'), 'recent.json');
@@ -328,6 +379,19 @@ ipcMain.handle('load-session', async () => {
   } catch {
     return null;
   }
+});
+
+// Update IPC handlers
+ipcMain.handle('check-for-updates', () => {
+  autoUpdater.checkForUpdates();
+});
+
+ipcMain.handle('download-update', () => {
+  autoUpdater.downloadUpdate();
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
 });
 
 app.whenReady().then(createWindow);

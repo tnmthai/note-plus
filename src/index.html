@@ -19,6 +19,33 @@
     <div id="editor"></div>
   </div>
 
+  <!-- Compare mode -->
+  <div id="compare-container" class="hidden">
+    <div id="compare-header">
+      <span id="compare-title"><i class="fas fa-columns"></i> Compare Mode</span>
+      <div id="compare-files">
+        <button id="compare-open-left" class="compare-btn">Open Left File</button>
+        <span id="compare-left-name">No file</span>
+        <span class="compare-vs">vs</span>
+        <button id="compare-open-right" class="compare-btn">Open Right File</button>
+        <span id="compare-right-name">No file</span>
+      </div>
+      <div id="compare-actions">
+        <button id="compare-run" class="compare-btn-primary" disabled>Compare</button>
+        <button id="compare-close" class="compare-btn-close">✕</button>
+      </div>
+    </div>
+    <div id="compare-summary" class="hidden"></div>
+    <div id="diff-container"></div>
+  </div>
+
+  <!-- Update bar -->
+  <div id="update-bar" class="hidden">
+    <span id="update-text"></span>
+    <button id="update-action" style="display:none"></button>
+    <button id="update-close" title="Close">✕</button>
+  </div>
+
   <!-- Status bar -->
   <div id="status-bar">
     <span id="status-file">Untitled</span>

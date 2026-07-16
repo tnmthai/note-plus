@@ -36,4 +36,11 @@ contextBridge.exposeInMainWorld('api', {
   onMenuZoomOut: (cb) => ipcRenderer.on('menu-zoom-out', cb),
   onMenuZoomReset: (cb) => ipcRenderer.on('menu-zoom-reset', cb),
   onMenuToggleTheme: (cb) => ipcRenderer.on('menu-toggle-theme', cb),
+  onMenuCompare: (cb) => ipcRenderer.on('menu-compare', cb),
+
+  // Update
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onUpdateStatus: (cb) => ipcRenderer.on('update-status', (e, status) => cb(status)),
 });

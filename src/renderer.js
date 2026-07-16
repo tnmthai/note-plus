@@ -565,6 +565,7 @@ window.api.onMenuZoomIn(() => zoomIn());
 window.api.onMenuZoomOut(() => zoomOut());
 window.api.onMenuZoomReset(() => zoomReset());
 window.api.onMenuToggleTheme(() => toggleTheme());
+window.api.onMenuCompare(() => openCompareMode());
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
@@ -604,3 +605,210 @@ document.getElementById('goto-input').addEventListener('keydown', (e) => {
 
 // New tab button
 document.getElementById('new-tab-btn').addEventListener('click', () => createNewTab());
+
+// Update notification
+const updateBar = document.getElementById('update-bar');
+const updateText = document.getElementById('update-text');
+const updateAction = document.getElementById('update-action');
+const updateClose = document.getElementById('update-close');
+
+function showUpdateBar(text, showAction = false, actionLabel = '') {
+  updateText.textContent = text;
+  updateAction.style.display = showAction ? 'inline-block' : 'none';
+  updateAction.textContent = actionLabel;
+  updateBar.classList.remove('hidden');
+}
+
+function hideUpdateBar() {
+  updateBar.classList.add('hidden');
+}
+
+window.api.onUpdateStatus((status) => {
+  switch (status.type) {
+    case 'checking':
+      showUpdateBar('Checking for updates...');
+      break;
+    case 'available':
+      showUpdateBar(
+        `Update available: v${status.version}`,
+        true,
+        'Download'
+      );
+      updateAction.onclick = () => {
+        window.api.downloadUpdate();
+        showUpdateBar('Downloading update...', false);
+      };
+      break;
+    case 'not-available':
+      showUpdateBar('You are up to date.');
+      setTimeout(hideUpdateBar, 3000);
+      break;
+    case 'progress':
+      showUpdateBar(`Downloading update... ${status.percent}%`, false);
+      break;
+    case 'downloaded':
+      showUpdateBar('Update ready to install.', true, 'Restart Now');
+      updateAction.onclick = () => window.api.installUpdate();
+      break;
+    case 'error':
+      showUpdateBar(`Update error: ${status.message}`);
+      setTimeout(hideUpdateBar, 5000);
+      break;
+  }
+});
+
+updateClose.addEventListener('click', hideUpdateBar);
+
+// Compare mode
+let compareMode = false;
+let diffEditor = null;
+let compareLeftContent = null;
+let compareRightContent = null;
+
+const compareContainer = document.getElementById('compare-container');
+const editorContainer = document.getElementById('editor-container');
+const compareSummary = document.getElementById('compare-summary');
+const compareLeftName = document.getElementById('compare-left-name');
+const compareRightName = document.getElementById('compare-right-name');
+const compareRunBtn = document.getElementById('compare-run');
+
+function openCompareMode() {
+  compareMode = true;
+  editorContainer.classList.add('hidden');
+  compareContainer.classList.remove('hidden');
+  compareLeftContent = null;
+  compareRightContent = null;
+  compareLeftName.textContent = 'No file';
+  compareRightName.textContent = 'No file';
+  compareSummary.classList.add('hidden');
+  compareRunBtn.disabled = true;
+  if (diffEditor) {
+    diffEditor.dispose();
+    diffEditor = null;
+  }
+  document.getElementById('diff-container').innerHTML = '';
+  autoSaveSession();
+}
+
+function closeCompareMode() {
+  compareMode = false;
+  compareContainer.classList.add('hidden');
+  editorContainer.classList.remove('hidden');
+  if (diffEditor) {
+    diffEditor.dispose();
+    diffEditor = null;
+  }
+  autoSaveSession();
+}
+
+async function openCompareFile(side) {
+  const result = await window.api.openFile();
+  if (!result) return;
+
+  const name = result.filePath.split(/[/\\]/).pop();
+  if (side === 'left') {
+    compareLeftContent = result.content;
+    compareLeftName.textContent = name;
+    compareLeftName.title = result.filePath;
+  } else {
+    compareRightContent = result.content;
+    compareRightName.textContent = name;
+    compareRightName.title = result.filePath;
+  }
+
+  compareRunBtn.disabled = !(compareLeftContent && compareRightContent);
+}
+
+function runCompare() {
+  if (!compareLeftContent || !compareRightContent) return;
+
+  const container = document.getElementById('diff-container');
+
+  if (diffEditor) {
+    diffEditor.dispose();
+  }
+
+  const originalModel = monaco.editor.createModel(compareLeftContent, 'plaintext');
+  const modifiedModel = monaco.editor.createModel(compareRightContent, 'plaintext');
+
+  diffEditor = monaco.editor.createDiffEditor(container, {
+    automaticLayout: true,
+    readOnly: true,
+    renderSideBySide: true,
+    enableSplitViewResizing: true,
+    scrollBeyondLastLine: false,
+    minimap: { enabled: false },
+    wordWrap: 'on',
+    fontSize: 14,
+    fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+  });
+
+  diffEditor.setModel({
+    original: originalModel,
+    modified: modifiedModel,
+  });
+
+  updateCompareSummary(compareLeftContent, compareRightContent);
+}
+
+function updateCompareSummary(original, modified) {
+  const originalLines = original.split('\n');
+  const modifiedLines = modified.split('\n');
+  const maxLines = Math.max(originalLines.length, modifiedLines.length);
+
+  let identical = 0;
+  let added = 0;
+  let removed = 0;
+  let modified_count = 0;
+
+  const origSet = new Set(originalLines);
+  const modSet = new Set(modifiedLines);
+
+  for (let i = 0; i < maxLines; i++) {
+    const origLine = originalLines[i];
+    const modLine = modifiedLines[i];
+
+    if (origLine === modLine) {
+      identical++;
+    } else if (origLine === undefined) {
+      added++;
+    } else if (modLine === undefined) {
+      removed++;
+    } else {
+      modified_count++;
+    }
+  }
+
+  const total = Math.max(originalLines.length, modifiedLines.length);
+  const percent = total > 0 ? Math.round((identical / total) * 100) : 0;
+
+  compareSummary.innerHTML = `
+    <span class="summary-item summary-identical">
+      <span class="summary-label">Identical:</span>
+      <span class="summary-value">${identical} lines</span>
+    </span>
+    <span class="summary-item summary-added">
+      <span class="summary-label">Added:</span>
+      <span class="summary-value">${added} lines</span>
+    </span>
+    <span class="summary-item summary-removed">
+      <span class="summary-label">Removed:</span>
+      <span class="summary-value">${removed} lines</span>
+    </span>
+    <span class="summary-item summary-modified">
+      <span class="summary-label">Modified:</span>
+      <span class="summary-value">${modified_count} lines</span>
+    </span>
+    <span class="summary-item summary-percent">
+      <span class="summary-label">Similarity:</span>
+      <span class="summary-value">${percent}%</span>
+    </span>
+  `;
+  compareSummary.classList.remove('hidden');
+}
+
+// Compare mode event listeners
+document.getElementById('compare-open-left').addEventListener('click', () => openCompareFile('left'));
+document.getElementById('compare-open-right').addEventListener('click', () => openCompareFile('right'));
+document.getElementById('compare-run').addEventListener('click', runCompare);
+document.getElementById('compare-close').addEventListener('click', closeCompareMode);
