@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const JSZip = require('jszip');
+const mammoth = require('mammoth');
 
 
 let mainWindow;
@@ -515,6 +516,22 @@ ipcMain.handle('read-file-binary', async (event, filePath) => {
     return { data: data.toString('base64'), error: null };
   } catch (err) {
     return { data: null, error: err.message };
+  }
+});
+
+ipcMain.handle('render-document', async (event, { filePath, docType }) => {
+  try {
+    if (docType === 'docx') {
+      const data = fs.readFileSync(filePath);
+      const result = await mammoth.convertToHtml({ buffer: data });
+      if (viewerWindow && !viewerWindow.isDestroyed()) {
+        viewerWindow.webContents.send('document-rendered', { type: 'docx', html: result.value, error: null });
+      }
+    }
+  } catch (err) {
+    if (viewerWindow && !viewerWindow.isDestroyed()) {
+      viewerWindow.webContents.send('document-rendered', { error: err.message });
+    }
   }
 });
 

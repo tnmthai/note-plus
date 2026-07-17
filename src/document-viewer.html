@@ -2,54 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document Viewer</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #1e1e1e;
-      color: #ccc;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    #toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 16px;
-      background: #2d2d2d;
-      border-bottom: 1px solid #3c3c3c;
-      flex-shrink: 0;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1e1e1e; color: #ccc; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    #toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #2d2d2d; border-bottom: 1px solid #3c3c3c; flex-shrink: 0; z-index: 10; }
     #toolbar .title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 500px; }
     #toolbar .info { font-size: 12px; color: #969696; }
     #toolbar button { background: #3c3c3c; border: none; color: #ccc; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
     #toolbar button:hover { background: #505050; }
     .zoom-controls { display: flex; align-items: center; gap: 8px; }
     .zoom-controls span { font-size: 13px; min-width: 50px; text-align: center; }
-    #content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-    #content::-webkit-scrollbar { width: 8px; }
-    #content::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-    .page-container { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: relative; }
-    .page-container canvas { display: block; }
-    .page-number { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-    .docx-content {
-      background: white; color: #333; padding: 40px 60px;
-      max-width: 800px; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      line-height: 1.6; font-size: 14px;
-    }
+    #content { flex: 1; overflow: hidden; position: relative; }
+    #pdf-frame { width: 100%; height: 100%; border: none; }
+    #docx-scroll { width: 100%; height: 100%; overflow-y: auto; padding: 20px; display: flex; justify-content: center; }
+    #docx-scroll::-webkit-scrollbar { width: 8px; }
+    #docx-scroll::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+    .docx-content { background: white; color: #333; padding: 40px 60px; max-width: 800px; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.3); line-height: 1.6; font-size: 14px; }
     .docx-content h1 { font-size: 24px; margin: 16px 0 8px; }
     .docx-content h2 { font-size: 20px; margin: 14px 0 6px; }
     .docx-content h3 { font-size: 16px; margin: 12px 0 4px; }
@@ -67,11 +37,10 @@
 <body>
   <div id="toolbar">
     <span id="doc-title" class="title">Document</span>
-    <div class="zoom-controls">
+    <div class="zoom-controls" id="zoom-controls" style="display:none;">
       <button id="zoom-out">-</button>
       <span id="zoom-level">100%</span>
       <button id="zoom-in">+</button>
-      <button id="zoom-fit">Fit</button>
     </div>
     <span id="doc-info" class="info"></span>
   </div>
@@ -81,103 +50,46 @@
       <span>Loading document...</span>
     </div>
   </div>
-  <script src='../node_modules/mammoth/mammoth.browser.js'></script>
-  <script src='../node_modules/pdfjs-dist/build/pdf.js'></script>
+
   <script>
-    let zoomLevel = 1.5;
-    const content = document.getElementById('content');
-    const loading = document.getElementById('loading');
-    const zoomLevelEl = document.getElementById('zoom-level');
-
-    function updateZoom() {
-      zoomLevelEl.textContent = Math.round(zoomLevel * 100) + '%';
-      document.querySelectorAll('.page-container canvas').forEach(c => {
-        c.style.width = (c.dataset.width * zoomLevel) + 'px';
-        c.style.height = (c.dataset.height * zoomLevel) + 'px';
-      });
-      document.querySelectorAll('.docx-content').forEach(el => {
-        el.style.transform = 'scale(' + zoomLevel + ')';
-        el.style.transformOrigin = 'top center';
-      });
-    }
-
-    document.getElementById('zoom-in').addEventListener('click', () => { zoomLevel = Math.min(3, zoomLevel + 0.25); updateZoom(); });
-    document.getElementById('zoom-out').addEventListener('click', () => { zoomLevel = Math.max(0.5, zoomLevel - 0.25); updateZoom(); });
-    document.getElementById('zoom-fit').addEventListener('click', () => { zoomLevel = 1.5; updateZoom(); });
-
-    const params = new URLSearchParams(window.location.search);
-    const filePath = params.get('file');
-    const docType = params.get('type');
+    var params = new URLSearchParams(window.location.search);
+    var filePath = params.get('file');
+    var docType = params.get('type');
     document.getElementById('doc-title').textContent = params.get('title') || filePath;
 
-    async function loadDocument() {
-      try {
-        const result = await window.api.readFileBinary(filePath);
-        if (result.error) throw new Error(result.error);
-
-        const data = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
-
-        if (docType === 'pdf') {
-          await loadPDF(data);
-        } else if (docType === 'docx') {
-          await loadDOCX(data);
-        }
-      } catch (err) {
-        loading.style.display = 'none';
-        content.innerHTML = '<div class="error">Error loading document: ' + err.message + '</div>';
-      }
+    // PDF: load in iframe
+    if (docType === 'pdf') {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('zoom-controls').style.display = 'none';
+      document.getElementById('doc-info').textContent = 'PDF Document (read-only)';
+      var content = document.getElementById('content');
+      var iframe = document.createElement('iframe');
+      iframe.id = 'pdf-frame';
+      iframe.src = 'file:///' + filePath.replace(/\\/g, '/');
+      content.appendChild(iframe);
     }
 
-    async function loadPDF(data) {
-      const pdfjsLib = window['pdfjs-dist/build/pdf'];
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.js';
-
-      const doc = await pdfjsLib.getDocument({ data }).promise;
-      loading.style.display = 'none';
-      document.getElementById('doc-info').textContent = doc.numPages + ' page' + (doc.numPages !== 1 ? 's' : '');
-
-      for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const scale = 2;
-        const viewport = page.getViewport({ scale });
-
-        const container = document.createElement('div');
-        container.className = 'page-container';
-
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.dataset.width = viewport.width;
-        canvas.dataset.height = viewport.height;
-
-        const ctx = canvas.getContext('2d');
-        await page.render({ canvasContext: ctx, viewport }).promise;
-
-        const pageNum = document.createElement('div');
-        pageNum.className = 'page-number';
-        pageNum.textContent = i + ' / ' + doc.numPages;
-
-        container.appendChild(canvas);
-        container.appendChild(pageNum);
-        content.appendChild(container);
-      }
-      updateZoom();
-    }
-
-    async function loadDOCX(data) {
-      const mammoth = window.mammoth;
-      const result = await mammoth.convertToHtml({ arrayBuffer: data.buffer });
-      loading.style.display = 'none';
+    // DOCX: render via mammoth in browser
+    if (docType === 'docx') {
       document.getElementById('doc-info').textContent = 'DOCX Document';
-
-      const div = document.createElement('div');
-      div.className = 'docx-content';
-      div.innerHTML = result.value;
-      content.appendChild(div);
-      updateZoom();
+      window.api.onDocumentRendered(function(data) {
+        document.getElementById('loading').style.display = 'none';
+        if (data.error) {
+          document.getElementById('content').innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+          return;
+        }
+        if (data.type === 'docx') {
+          var scroll = document.getElementById('content');
+          scroll.id = 'docx-scroll';
+          scroll.innerHTML = '';
+          var div = document.createElement('div');
+          div.className = 'docx-content';
+          div.innerHTML = data.html;
+          scroll.appendChild(div);
+        }
+      });
+      window.api.renderDocument(filePath, docType);
     }
-
-    loadDocument();
   </script>
 </body>
 </html>

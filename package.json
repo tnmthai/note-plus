@@ -23,7 +23,7 @@
     "mammoth": "^1.12.0",
     "monaco-editor": "^0.52.0",
     "pdf-parse": "^1.1.1",
-    "pdfjs-dist": "^6.1.200",
+    "pdfjs-dist": "^3.11.174",
     "unrar.js": "^0.2.5"
   },
   "build": {
