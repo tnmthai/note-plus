@@ -573,10 +573,18 @@ document.addEventListener('DOMContentLoaded', () => {
 window.api.onMenuNew(() => createNewTab());
 window.api.onMenuOpen(() => openFile());
 window.api.onMenuOpenFile(async (filePath) => {
-  const result = await window.api.readFile(filePath);
-  if (result.content !== null) {
-    const lang = detectLanguage(filePath);
-    createNewTab(filePath, result.content, lang);
+  // Check if it's an archive
+  if (isArchiveFile(filePath)) {
+    openArchive(filePath);
+  } else if (isDocumentFile(filePath)) {
+    const ext = filePath.split('.').pop().toLowerCase();
+    await openDocument(filePath, ext);
+  } else {
+    const result = await window.api.readFile(filePath);
+    if (result.content !== null) {
+      const lang = detectLanguage(filePath);
+      createNewTab(filePath, result.content, lang);
+    }
   }
 });
 window.api.onMenuSave(() => saveCurrentFile());
