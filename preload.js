@@ -13,13 +13,10 @@ contextBridge.exposeInMainWorld('api', {
   saveSessionSync: (data) => ipcRenderer.sendSync('save-session-sync', data),
   loadSession: () => ipcRenderer.invoke('load-session'),
 
-  // Document (DOCX/PDF)
-  readDocument: (filePath, docType) => ipcRenderer.invoke('read-document', { filePath, docType }),
-
   // Document viewer
   openDocumentViewer: (filePath, docType) => ipcRenderer.invoke('open-document-viewer', { filePath, docType }),
-  requestDocument: (filePath, docType) => ipcRenderer.invoke('request-document', { filePath, docType }),
-  onDocumentData: (cb) => ipcRenderer.on('document-data', (e, data) => cb(data)),
+  renderDocument: (filePath, docType) => ipcRenderer.invoke('render-document', { filePath, docType }),
+  onDocumentRendered: (cb) => ipcRenderer.on('document-rendered', (e, data) => cb(data)),
 
   // Archive
   readArchive: (archivePath) => ipcRenderer.invoke('read-archive', archivePath),
