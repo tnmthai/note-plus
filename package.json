@@ -22,7 +22,7 @@
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "monaco-editor": "^0.52.0",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.1",
     "unrar.js": "^0.2.5"
   },
   "build": {
