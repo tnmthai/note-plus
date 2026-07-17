@@ -281,6 +281,14 @@ ipcMain.handle('dialog-open', async () => {
 
   if (!result.canceled && result.filePaths.length > 0) {
     const filePath = result.filePaths[0];
+    const ext = path.extname(filePath).toLowerCase();
+    
+    // Check if it's an archive file
+    if (ext === '.zip' || ext === '.rar') {
+      saveRecentFile(filePath);
+      return { filePath, content: null, isArchive: true };
+    }
+    
     const content = fs.readFileSync(filePath, 'utf-8');
     saveRecentFile(filePath);
     return { filePath, content };
