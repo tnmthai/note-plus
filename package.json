@@ -18,13 +18,15 @@
     "electron-builder": "^25.0.0"
   },
   "dependencies": {
+    "docx-preview": "^0.4.0",
     "electron-updater": "^6.8.9",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "monaco-editor": "^0.52.0",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^3.11.174",
-    "unrar.js": "^0.2.5"
+    "unrar.js": "^0.2.5",
+    "xlsx": "^0.18.5"
   },
   "build": {
     "appId": "com.tnmthai.note-plus",

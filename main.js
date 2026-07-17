@@ -247,7 +247,7 @@ ipcMain.handle('dialog-open', async () => {
     filters: [
       { name: 'All Supported Files', extensions: [
         'txt', 'log', 'md', 'csv',
-        'zip', 'rar', 'docx', 'pdf',
+        'zip', 'rar', 'docx', 'pdf', 'xlsx', 'xls', 'xlsx', 'xls',
         'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf',
         'html', 'htm', 'css', 'scss', 'less',
         'js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs',
@@ -277,7 +277,7 @@ ipcMain.handle('dialog-open', async () => {
       { name: 'Ruby/PHP', extensions: ['rb', 'php'] },
       { name: 'Shell Scripts', extensions: ['sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd'] },
       { name: 'Archive Files', extensions: ['zip', 'rar'] },
-      { name: 'Document Files', extensions: ['docx', 'pdf'] },
+      { name: 'Document Files', extensions: ['docx', 'pdf', 'xlsx', 'xls'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -293,7 +293,7 @@ ipcMain.handle('dialog-open', async () => {
     }
     
     // Check if it's a document file (DOCX/PDF)
-    if (ext === '.docx' || ext === '.pdf') {
+    if (ext === '.docx' || ext === '.pdf' || ext === '.xlsx' || ext === '.xls') {
       saveRecentFile(filePath);
       return { filePath, content: null, isDocument: true, docType: ext.slice(1) };
     }
@@ -332,7 +332,7 @@ async function saveAsDialog(content) {
       { name: 'Ruby/PHP', extensions: ['rb', 'php'] },
       { name: 'Shell Scripts', extensions: ['sh', 'bash', 'ps1', 'bat', 'cmd'] },
       { name: 'Archive Files', extensions: ['zip', 'rar'] },
-      { name: 'Document Files', extensions: ['docx', 'pdf'] },
+      { name: 'Document Files', extensions: ['docx', 'pdf', 'xlsx', 'xls'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -521,11 +521,10 @@ ipcMain.handle('read-file-binary', async (event, filePath) => {
 
 ipcMain.handle('render-document', async (event, { filePath, docType }) => {
   try {
-    if (docType === 'docx') {
+    if (docType === 'docx' || docType === 'xlsx' || docType === 'xls') {
       const data = fs.readFileSync(filePath);
-      const result = await mammoth.convertToHtml({ buffer: data });
       if (viewerWindow && !viewerWindow.isDestroyed()) {
-        viewerWindow.webContents.send('document-rendered', { type: 'docx', html: result.value, error: null });
+        viewerWindow.webContents.send('document-rendered', { type: docType, data: data.toString('base64'), error: null });
       }
     }
   } catch (err) {

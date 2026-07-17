@@ -846,7 +846,7 @@ function isArchiveFile(filePath) {
 
 function isDocumentFile(filePath) {
   const ext = filePath.split('.').pop().toLowerCase();
-  return ext === 'docx' || ext === 'pdf';
+  return ext === 'docx' || ext === 'pdf' || ext === 'xlsx' || ext === 'xls';
 }
 
 async function openDocument(filePath, docType) {

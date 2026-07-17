@@ -4,44 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document Viewer</title>
+  <link rel="stylesheet" href="../node_modules/docx-preview/dist/docx-preview.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1e1e1e; color: #ccc; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
     #toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #2d2d2d; border-bottom: 1px solid #3c3c3c; flex-shrink: 0; z-index: 10; }
     #toolbar .title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 500px; }
     #toolbar .info { font-size: 12px; color: #969696; }
-    #toolbar button { background: #3c3c3c; border: none; color: #ccc; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
-    #toolbar button:hover { background: #505050; }
-    .zoom-controls { display: flex; align-items: center; gap: 8px; }
-    .zoom-controls span { font-size: 13px; min-width: 50px; text-align: center; }
     #content { flex: 1; overflow: hidden; position: relative; }
     #pdf-frame { width: 100%; height: 100%; border: none; }
-    #docx-scroll { width: 100%; height: 100%; overflow-y: auto; padding: 20px; display: flex; justify-content: center; }
-    #docx-scroll::-webkit-scrollbar { width: 8px; }
-    #docx-scroll::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-    .docx-content { background: white; color: #333; padding: 40px 60px; max-width: 800px; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.3); line-height: 1.6; font-size: 14px; }
-    .docx-content h1 { font-size: 24px; margin: 16px 0 8px; }
-    .docx-content h2 { font-size: 20px; margin: 14px 0 6px; }
-    .docx-content h3 { font-size: 16px; margin: 12px 0 4px; }
-    .docx-content p { margin: 8px 0; }
-    .docx-content ul, .docx-content ol { margin: 8px 0 8px 24px; }
-    .docx-content table { border-collapse: collapse; margin: 8px 0; width: 100%; }
-    .docx-content th, .docx-content td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
-    .docx-content th { background: #f0f0f0; }
+    #docx-container { width: 100%; height: 100%; overflow-y: auto; padding: 20px; background: #f5f5f5; }
+    #docx-container::-webkit-scrollbar { width: 8px; }
+    #docx-container::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+    #xlsx-container { width: 100%; height: 100%; overflow: auto; padding: 20px; }
+    #xlsx-container::-webkit-scrollbar { width: 8px; height: 8px; }
+    #xlsx-container::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+    .xlsx-table { border-collapse: collapse; background: white; width: 100%; }
+    .xlsx-table th, .xlsx-table td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+    .xlsx-table th { background: #e8e8e8; font-weight: 600; position: sticky; top: 0; }
+    .xlsx-table tr:nth-child(even) { background: #f9f9f9; }
+    .xlsx-table tr:hover { background: #e3f2fd; }
+    .xlsx-sheet-tabs { display: flex; gap: 4px; margin-bottom: 12px; background: #2d2d2d; padding: 8px; border-radius: 4px; }
+    .xlsx-sheet-tab { background: #3c3c3c; border: none; color: #ccc; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .xlsx-sheet-tab:hover { background: #505050; }
+    .xlsx-sheet-tab.active { background: #007acc; color: white; }
     #loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #969696; font-size: 14px; }
     .spinner { width: 32px; height: 32px; border: 3px solid #3c3c3c; border-top: 3px solid #007acc; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .error { color: #f44747; padding: 20px; text-align: center; }
+    /* docx-preview overrides */
+    .docx-wrapper { background: white; max-width: 900px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.2); padding: 40px; }
   </style>
 </head>
 <body>
   <div id="toolbar">
     <span id="doc-title" class="title">Document</span>
-    <div class="zoom-controls" id="zoom-controls" style="display:none;">
-      <button id="zoom-out">-</button>
-      <span id="zoom-level">100%</span>
-      <button id="zoom-in">+</button>
-    </div>
     <span id="doc-info" class="info"></span>
   </div>
   <div id="content">
@@ -51,44 +48,79 @@
     </div>
   </div>
 
+  <script src="../node_modules/docx-preview/dist/docx-preview.js"></script>
+  <script src="../node_modules/xlsx/dist/xlsx.full.min.js"></script>
   <script>
     var params = new URLSearchParams(window.location.search);
     var filePath = params.get('file');
     var docType = params.get('type');
     document.getElementById('doc-title').textContent = params.get('title') || filePath;
 
-    // PDF: load in iframe
     if (docType === 'pdf') {
       document.getElementById('loading').style.display = 'none';
-      document.getElementById('zoom-controls').style.display = 'none';
       document.getElementById('doc-info').textContent = 'PDF Document (read-only)';
       var content = document.getElementById('content');
       var iframe = document.createElement('iframe');
       iframe.id = 'pdf-frame';
       iframe.src = 'file:///' + filePath.replace(/\\/g, '/');
       content.appendChild(iframe);
-    }
-
-    // DOCX: render via mammoth in browser
-    if (docType === 'docx') {
-      document.getElementById('doc-info').textContent = 'DOCX Document';
-      window.api.onDocumentRendered(function(data) {
+    } else {
+      window.api.onDocumentRendered(function(result) {
         document.getElementById('loading').style.display = 'none';
-        if (data.error) {
-          document.getElementById('content').innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        if (result.error) {
+          document.getElementById('content').innerHTML = '<div class="error">Error: ' + result.error + '</div>';
           return;
         }
-        if (data.type === 'docx') {
-          var scroll = document.getElementById('content');
-          scroll.id = 'docx-scroll';
-          scroll.innerHTML = '';
-          var div = document.createElement('div');
-          div.className = 'docx-content';
-          div.innerHTML = data.html;
-          scroll.appendChild(div);
+        if (result.type === 'docx') {
+          document.getElementById('doc-info').textContent = 'DOCX Document';
+          renderDOCX(result.data);
+        } else if (result.type === 'xlsx' || result.type === 'xls') {
+          document.getElementById('doc-info').textContent = (result.type === 'xlsx' ? 'XLSX' : 'XLS') + ' Spreadsheet';
+          renderXLSX(result.data);
         }
       });
       window.api.renderDocument(filePath, docType);
+    }
+
+    function renderDOCX(base64Data) {
+      var bytes = Uint8Array.from(atob(base64Data), function(c) { return c.charCodeAt(0); });
+      var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      var container = document.getElementById('content');
+      container.id = 'docx-container';
+      container.innerHTML = '<div class="docx-wrapper" id="docx-render"></div>';
+      docx.renderAsync(blob, document.getElementById('docx-render')).then(function() {
+        console.log('DOCX rendered');
+      }).catch(function(err) {
+        document.getElementById('docx-render').innerHTML = '<div class="error">Error rendering DOCX: ' + err.message + '</div>';
+      });
+    }
+
+    function renderXLSX(base64Data) {
+      var bytes = Uint8Array.from(atob(base64Data), function(c) { return c.charCodeAt(0); });
+      var workbook = XLSX.read(bytes, { type: 'array' });
+      var container = document.getElementById('content');
+      container.id = 'xlsx-container';
+
+      var sheetNames = workbook.SheetNames;
+      var currentSheet = 0;
+
+      function renderSheet(index) {
+        var html = '<div class="xlsx-sheet-tabs">';
+        for (var i = 0; i < sheetNames.length; i++) {
+          html += '<button class="xlsx-sheet-tab' + (i === index ? ' active' : '') + '" data-index="' + i + '">' + sheetNames[i] + '</button>';
+        }
+        html += '</div>';
+        html += XLSX.utils.sheet_to_html(workbook.Sheets[sheetNames[index]], { editable: false, class: 'xlsx-table' });
+        container.innerHTML = html;
+
+        container.querySelectorAll('.xlsx-sheet-tab').forEach(function(tab) {
+          tab.addEventListener('click', function() {
+            renderSheet(parseInt(this.dataset.index));
+          });
+        });
+      }
+
+      renderSheet(0);
     }
   </script>
 </body>
