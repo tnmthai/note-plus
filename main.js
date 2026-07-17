@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const JSZip = require('jszip');
+const mammoth = require('mammoth');
+const pdfParse = require('pdf-parse');
 
 let mainWindow;
 let openFiles = new Map(); // path -> { content, mtime }
@@ -245,7 +247,7 @@ ipcMain.handle('dialog-open', async () => {
     filters: [
       { name: 'All Supported Files', extensions: [
         'txt', 'log', 'md', 'csv',
-        'zip', 'rar',
+        'zip', 'rar', 'docx', 'pdf',
         'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf',
         'html', 'htm', 'css', 'scss', 'less',
         'js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs',
@@ -275,6 +277,7 @@ ipcMain.handle('dialog-open', async () => {
       { name: 'Ruby/PHP', extensions: ['rb', 'php'] },
       { name: 'Shell Scripts', extensions: ['sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd'] },
       { name: 'Archive Files', extensions: ['zip', 'rar'] },
+      { name: 'Document Files', extensions: ['docx', 'pdf'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -287,6 +290,12 @@ ipcMain.handle('dialog-open', async () => {
     if (ext === '.zip' || ext === '.rar') {
       saveRecentFile(filePath);
       return { filePath, content: null, isArchive: true };
+    }
+    
+    // Check if it's a document file (DOCX/PDF)
+    if (ext === '.docx' || ext === '.pdf') {
+      saveRecentFile(filePath);
+      return { filePath, content: null, isDocument: true, docType: ext.slice(1) };
     }
     
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -323,6 +332,7 @@ async function saveAsDialog(content) {
       { name: 'Ruby/PHP', extensions: ['rb', 'php'] },
       { name: 'Shell Scripts', extensions: ['sh', 'bash', 'ps1', 'bat', 'cmd'] },
       { name: 'Archive Files', extensions: ['zip', 'rar'] },
+      { name: 'Document Files', extensions: ['docx', 'pdf'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -468,6 +478,26 @@ ipcMain.handle('read-archive-file', async (event, { archivePath, filePath }) => 
     return { content: null, error: err.message };
   }
 });
+
+
+// Document IPC handlers (DOCX, PDF)
+ipcMain.handle('read-document', async (event, { filePath, docType }) => {
+  try {
+    if (docType === 'docx') {
+      const data = fs.readFileSync(filePath);
+      const result = await mammoth.extractRawText({ buffer: data });
+      return { content: result.value, error: null };
+    } else if (docType === 'pdf') {
+      const data = fs.readFileSync(filePath);
+      const result = await pdfParse(data);
+      return { content: result.text, error: null };
+    }
+    return { content: null, error: 'Unsupported document type' };
+  } catch (err) {
+    return { content: null, error: err.message };
+  }
+});
+
 
 app.whenReady().then(createWindow);
 

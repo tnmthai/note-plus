@@ -314,6 +314,8 @@ async function openFile() {
     // Check if it's an archive
     if (result.isArchive) {
       openArchive(result.filePath);
+    } else if (result.isDocument) {
+      await openDocument(result.filePath, result.docType);
     } else {
       const lang = detectLanguage(result.filePath);
       // Check if file already open
@@ -552,6 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check if it's an archive
         if (isArchiveFile(path)) {
           openArchive(path);
+        } else if (isDocumentFile(path)) {
+          const ext = path.split('.').pop().toLowerCase();
+          await openDocument(path, ext);
         } else {
           const result = await window.api.readFile(path);
           if (result.content !== null) {
@@ -837,6 +842,30 @@ document.getElementById('compare-run').addEventListener('click', runCompare);
 function isArchiveFile(filePath) {
   const ext = filePath.split('.').pop().toLowerCase();
   return ext === 'zip' || ext === 'rar';
+}
+
+function isDocumentFile(filePath) {
+  const ext = filePath.split('.').pop().toLowerCase();
+  return ext === 'docx' || ext === 'pdf';
+}
+
+async function openDocument(filePath, docType) {
+  const result = await window.api.readDocument(filePath, docType);
+  if (result.error) {
+    console.error('Failed to read document:', result.error);
+    return;
+  }
+  
+  const lang = docType === 'pdf' ? 'plaintext' : 'plaintext';
+  const name = filePath.split(/[/\\]/).pop();
+  
+  // Check if already open
+  const existing = tabs.find(t => t.filePath === filePath);
+  if (existing) {
+    switchToTab(existing.id);
+  } else {
+    createNewTab(filePath, result.content, lang);
+  }
 }
 
 function formatFileSize(bytes) {

@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('api', {
   saveSessionSync: (data) => ipcRenderer.sendSync('save-session-sync', data),
   loadSession: () => ipcRenderer.invoke('load-session'),
 
+  // Document (DOCX/PDF)
+  readDocument: (filePath, docType) => ipcRenderer.invoke('read-document', { filePath, docType }),
+
   // Archive
   readArchive: (archivePath) => ipcRenderer.invoke('read-archive', archivePath),
   readArchiveFile: (archivePath, filePath) => ipcRenderer.invoke('read-archive-file', { archivePath, filePath }),
