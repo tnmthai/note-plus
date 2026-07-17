@@ -850,22 +850,8 @@ function isDocumentFile(filePath) {
 }
 
 async function openDocument(filePath, docType) {
-  const result = await window.api.readDocument(filePath, docType);
-  if (result.error) {
-    console.error('Failed to read document:', result.error);
-    return;
-  }
-  
-  const lang = docType === 'pdf' ? 'plaintext' : 'plaintext';
-  const name = filePath.split(/[/\\]/).pop();
-  
-  // Check if already open
-  const existing = tabs.find(t => t.filePath === filePath);
-  if (existing) {
-    switchToTab(existing.id);
-  } else {
-    createNewTab(filePath, result.content, lang);
-  }
+  // Open in dedicated viewer window
+  await window.api.openDocumentViewer(filePath, docType);
 }
 
 function formatFileSize(bytes) {

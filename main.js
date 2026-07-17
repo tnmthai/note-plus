@@ -3,8 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const JSZip = require('jszip');
-const mammoth = require('mammoth');
-const pdfParse = require('pdf-parse');
+
 
 let mainWindow;
 let openFiles = new Map(); // path -> { content, mtime }
@@ -480,21 +479,42 @@ ipcMain.handle('read-archive-file', async (event, { archivePath, filePath }) => 
 });
 
 
-// Document IPC handlers (DOCX, PDF)
-ipcMain.handle('read-document', async (event, { filePath, docType }) => {
+
+
+
+// Document viewer IPC handler
+let viewerWindow = null;
+
+ipcMain.handle('open-document-viewer', async (event, { filePath, docType }) => {
+  const fileName = path.basename(filePath);
+  
+  viewerWindow = new BrowserWindow({
+    width: 1000,
+    height: 800,
+    minWidth: 600,
+    minHeight: 400,
+    title: fileName + ' - Note+ Viewer',
+    icon: path.join(__dirname, 'src', 'icon.ico'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  viewerWindow.loadFile(path.join(__dirname, 'src', 'document-viewer.html'), {
+    query: { file: filePath, type: docType, title: fileName }
+  });
+
+  viewerWindow.on('closed', () => { viewerWindow = null; });
+});
+
+ipcMain.handle('read-file-binary', async (event, filePath) => {
   try {
-    if (docType === 'docx') {
-      const data = fs.readFileSync(filePath);
-      const result = await mammoth.extractRawText({ buffer: data });
-      return { content: result.value, error: null };
-    } else if (docType === 'pdf') {
-      const data = fs.readFileSync(filePath);
-      const result = await pdfParse(data);
-      return { content: result.text, error: null };
-    }
-    return { content: null, error: 'Unsupported document type' };
+    const data = fs.readFileSync(filePath);
+    return { data: data.toString('base64'), error: null };
   } catch (err) {
-    return { content: null, error: err.message };
+    return { data: null, error: err.message };
   }
 });
 

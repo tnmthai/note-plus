@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('api', {
   // Document (DOCX/PDF)
   readDocument: (filePath, docType) => ipcRenderer.invoke('read-document', { filePath, docType }),
 
+  // Document viewer
+  openDocumentViewer: (filePath, docType) => ipcRenderer.invoke('open-document-viewer', { filePath, docType }),
+  requestDocument: (filePath, docType) => ipcRenderer.invoke('request-document', { filePath, docType }),
+  onDocumentData: (cb) => ipcRenderer.on('document-data', (e, data) => cb(data)),
+
   // Archive
   readArchive: (archivePath) => ipcRenderer.invoke('read-archive', archivePath),
   readArchiveFile: (archivePath, filePath) => ipcRenderer.invoke('read-archive-file', { archivePath, filePath }),
