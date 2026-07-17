@@ -158,7 +158,7 @@ function buildMenu() {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About Note+',
-              message: 'Note+ v1.1.0',
+              message: 'Note+ v1.2.0',
               detail: 'Author: Thai Tran <me@tnmthai.com>',
             });
           },

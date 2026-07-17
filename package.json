@@ -1,6 +1,6 @@
 {
   "name": "note-plus",
-  "version": "1.2.0-beta.2",
+  "version": "1.2.0",
   "description": "Note+ - A lightweight cross-platform text editor built with Electron and Monaco Editor",
   "main": "main.js",
   "scripts": {
