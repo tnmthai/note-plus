@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
+const JSZip = require('jszip');
 
 let mainWindow;
 let openFiles = new Map(); // path -> { content, mtime }
@@ -244,6 +245,7 @@ ipcMain.handle('dialog-open', async () => {
     filters: [
       { name: 'All Supported Files', extensions: [
         'txt', 'log', 'md', 'csv',
+        'zip', 'rar',
         'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf',
         'html', 'htm', 'css', 'scss', 'less',
         'js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs',
@@ -272,6 +274,7 @@ ipcMain.handle('dialog-open', async () => {
       { name: 'Go/Rust', extensions: ['go', 'rs'] },
       { name: 'Ruby/PHP', extensions: ['rb', 'php'] },
       { name: 'Shell Scripts', extensions: ['sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd'] },
+      { name: 'Archive Files', extensions: ['zip', 'rar'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -311,6 +314,7 @@ async function saveAsDialog(content) {
       { name: 'Go/Rust', extensions: ['go', 'rs'] },
       { name: 'Ruby/PHP', extensions: ['rb', 'php'] },
       { name: 'Shell Scripts', extensions: ['sh', 'bash', 'ps1', 'bat', 'cmd'] },
+      { name: 'Archive Files', extensions: ['zip', 'rar'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -392,6 +396,69 @@ ipcMain.handle('download-update', () => {
 
 ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall();
+});
+
+
+// Archive IPC handlers
+ipcMain.handle('read-archive', async (event, archivePath) => {
+  const ext = path.extname(archivePath).toLowerCase();
+  try {
+    if (ext === '.zip') {
+      const data = fs.readFileSync(archivePath);
+      const zip = await JSZip.loadAsync(data);
+      const files = [];
+      zip.forEach((relativePath, zipEntry) => {
+        if (!zipEntry.dir) {
+          files.push({
+            name: relativePath,
+            size: zipEntry._data ? zipEntry._data.uncompressedSize || 0 : 0,
+          });
+        }
+      });
+      return { files, error: null };
+    } else if (ext === '.rar') {
+      // RAR support using unrar.js
+      const Unrar = require('unrar.js');
+      const archive = new Unrar(archivePath);
+      const list = archive.list();
+      const files = list.filter(f => f.type === 'File').map(f => ({
+        name: f.name,
+        size: f.size,
+      }));
+      return { files, error: null };
+    }
+    return { files: [], error: 'Unsupported archive format' };
+  } catch (err) {
+    return { files: [], error: err.message };
+  }
+});
+
+ipcMain.handle('read-archive-file', async (event, { archivePath, filePath }) => {
+  const ext = path.extname(archivePath).toLowerCase();
+  try {
+    if (ext === '.zip') {
+      const data = fs.readFileSync(archivePath);
+      const zip = await JSZip.loadAsync(data);
+      const file = zip.file(filePath);
+      if (!file) {
+        return { content: null, error: 'File not found in archive' };
+      }
+      const content = await file.async('string');
+      return { content, error: null };
+    } else if (ext === '.rar') {
+      const Unrar = require('unrar.js');
+      const archive = new Unrar(archivePath);
+      const extracted = archive.extractFile(filePath);
+      if (!extracted) {
+        return { content: null, error: 'File not found in archive' };
+      }
+      const content = Buffer.from(extracted).toString('utf-8');
+      return { content, error: null };
+    }
+    return { content: null, error: 'Unsupported archive format' };
+  } catch (err) {
+    return { content: null, error: err.message };
+  }
 });
 
 app.whenReady().then(createWindow);

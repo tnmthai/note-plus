@@ -1,6 +1,6 @@
 {
   "name": "note-plus",
-  "version": "1.1.0",
+  "version": "1.2.0-beta.1",
   "description": "Note+ - A lightweight cross-platform text editor built with Electron and Monaco Editor",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,9 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
-    "monaco-editor": "^0.52.0"
+    "jszip": "^3.10.1",
+    "monaco-editor": "^0.52.0",
+    "unrar.js": "^0.2.5"
   },
   "build": {
     "appId": "com.tnmthai.note-plus",
@@ -44,10 +46,12 @@
         "nsis",
         "portable"
       ],
+      "icon": "src/icon.ico",
       "executableName": "Note+",
       "sign": false,
       "signAndEditExecutable": false
     },
+    "afterPack": "./after-pack.js",
     "nsis": {
       "oneClick": false,
       "perMachine": true,

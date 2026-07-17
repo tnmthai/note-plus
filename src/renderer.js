@@ -4,6 +4,10 @@ let activeTabId = null;
 let tabCounter = 0;
 let isDarkTheme = true;
 
+// Archive state
+let currentArchive = null; // { path, files: [] }
+let archiveFileContentCache = new Map(); // archivePath:filePath -> content
+
 // Language mapping for file extensions
 const LANG_MAP = {
   'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript',
@@ -95,6 +99,7 @@ require(['vs/editor/editor.main'], () => {
       })),
       activeTabId,
       isDarkTheme,
+      archive: currentArchive ? { path: currentArchive.path } : null,
     });
   });
 
@@ -114,6 +119,7 @@ async function saveSession() {
     })),
     activeTabId,
     isDarkTheme,
+    archive: currentArchive ? { path: currentArchive.path } : null,
   };
   await window.api.saveSession(sessionData);
 }
@@ -157,6 +163,11 @@ async function loadSession() {
     updateTabUI();
   } else {
     createNewTab();
+  }
+
+  // Restore archive panel
+  if (session && session.archive && session.archive.path) {
+    openArchive(session.archive.path);
   }
 }
 
@@ -300,13 +311,18 @@ function detectLanguage(filePath) {
 async function openFile() {
   const result = await window.api.openFile();
   if (result) {
-    const lang = detectLanguage(result.filePath);
-    // Check if file already open
-    const existing = tabs.find((t) => t.filePath === result.filePath);
-    if (existing) {
-      switchToTab(existing.id);
+    // Check if it's an archive
+    if (result.isArchive) {
+      openArchive(result.filePath);
     } else {
-      createNewTab(result.filePath, result.content, lang);
+      const lang = detectLanguage(result.filePath);
+      // Check if file already open
+      const existing = tabs.find((t) => t.filePath === result.filePath);
+      if (existing) {
+        switchToTab(existing.id);
+      } else {
+        createNewTab(result.filePath, result.content, lang);
+      }
     }
   }
 }
@@ -533,10 +549,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const file = e.dataTransfer.files[0];
       const path = file.path;
       if (path) {
-        const result = await window.api.readFile(path);
-        if (result.content !== null) {
-          const lang = detectLanguage(path);
-          createNewTab(path, result.content, lang);
+        // Check if it's an archive
+        if (isArchiveFile(path)) {
+          openArchive(path);
+        } else {
+          const result = await window.api.readFile(path);
+          if (result.content !== null) {
+            const lang = detectLanguage(path);
+            createNewTab(path, result.content, lang);
+          }
         }
       }
     }
@@ -811,4 +832,157 @@ function updateCompareSummary(original, modified) {
 document.getElementById('compare-open-left').addEventListener('click', () => openCompareFile('left'));
 document.getElementById('compare-open-right').addEventListener('click', () => openCompareFile('right'));
 document.getElementById('compare-run').addEventListener('click', runCompare);
+
+// Archive functions
+function isArchiveFile(filePath) {
+  const ext = filePath.split('.').pop().toLowerCase();
+  return ext === 'zip' || ext === 'rar';
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+async function openArchive(archivePath) {
+  const result = await window.api.readArchive(archivePath);
+  if (result.error) {
+    console.error('Failed to read archive:', result.error);
+    return;
+  }
+
+  currentArchive = { path: archivePath, files: result.files };
+  renderArchiveTree(result.files);
+  document.getElementById('archive-panel').classList.remove('hidden');
+  document.getElementById('archive-name').textContent = archivePath.split(/[/\\]/).pop();
+}
+
+function renderArchiveTree(files) {
+  const tree = document.getElementById('archive-tree');
+  tree.innerHTML = '';
+
+  files.sort((a, b) => {
+    const aDir = a.name.includes('/') && !a.name.endsWith('/');
+    const bDir = b.name.includes('/') && !b.name.endsWith('/');
+    if (aDir && !bDir) return -1;
+    if (!aDir && bDir) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  const root = {};
+  files.forEach(file => {
+    const parts = file.name.split('/');
+    let node = root;
+    parts.forEach((part, i) => {
+      if (!node[part]) {
+        node[part] = i === parts.length - 1 ? file : {};
+      }
+      node = node[part];
+    });
+  });
+
+  function renderNode(node, parentPath, depth) {
+    const entries = Object.entries(node).sort(([aName, aVal], [bName, bVal]) => {
+      const aIsDir = typeof aVal === 'object' && !aVal.name;
+      const bIsDir = typeof bVal === 'object' && !bVal.name;
+      if (aIsDir && !bIsDir) return -1;
+      if (!aIsDir && bIsDir) return 1;
+      return aName.localeCompare(bName);
+    });
+
+    entries.forEach(([name, value]) => {
+      const isDir = typeof value === 'object' && !value.name;
+      const item = document.createElement('div');
+      item.className = 'archive-item';
+      item.style.paddingLeft = (12 + depth * 16) + 'px';
+
+      const icon = isDir ? '\uD83D\uDCC1' : getFileIcon(name);
+      const size = !isDir && value.size ? formatFileSize(value.size) : '';
+      const fullPath = parentPath ? parentPath + '/' + name : name;
+
+      item.innerHTML =
+        '<span class="archive-item-icon">' + icon + '</span>' +
+        '<span class="archive-item-name" title="' + fullPath + '">' + name + '</span>' +
+        (size ? '<span class="archive-item-size">' + size + '</span>' : '');
+
+      if (!isDir) {
+        item.addEventListener('click', () => openArchiveFile(fullPath));
+      }
+
+      tree.appendChild(item);
+
+      if (isDir) {
+        renderNode(value, fullPath, depth + 1);
+      }
+    });
+  }
+
+  renderNode(root, '', 0);
+}
+
+function getFileIcon(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const icons = {
+    js: '\uD83D\uDCD9', ts: '\uD83D\uDCD9', jsx: '\uD83D\uDCD9', tsx: '\uD83D\uDCD9',
+    html: '\uD83C\uDF10', css: '\uD83C\uDFA8', json: '{ }', xml: '\uD83D\uDCF6',
+    md: '\uD83D\uDCDD', txt: '\uD83D\uDCC4', log: '\uD83D\uDCCB',
+    py: '\uD83D\uDC0D', rb: '\uD83D\uDD38', java: '\u2615', go: '\uD83D\uDC1D', rs: '\uD83E\uDD80',
+    png: '\uD83D\uDDBC', jpg: '\uD83D\uDDBC', gif: '\uD83D\uDDBC', svg: '\uD83D\uDDBC',
+    zip: '\uD83D\uDCE6', rar: '\uD83D\uDCE6', '7z': '\uD83D\uDCE6',
+    pdf: '\uD83D\uDCD5', doc: '\uD83D\uDCC3', xls: '\uD83D\uDCCA',
+  };
+  return icons[ext] || '\uD83D\uDCC4';
+}
+
+async function openArchiveFile(filePath) {
+  if (!currentArchive) return;
+
+  const cacheKey = currentArchive.path + ':' + filePath;
+  let content = archiveFileContentCache.get(cacheKey);
+
+  if (!content) {
+    const result = await window.api.readArchiveFile(currentArchive.path, filePath);
+    if (result.error) {
+      console.error('Failed to read file from archive:', result.error);
+      return;
+    }
+    content = result.content;
+    archiveFileContentCache.set(cacheKey, content);
+  }
+
+  const lang = detectLanguage(filePath);
+  const displayName = '[' + currentArchive.path.split(/[/\\]/).pop() + '] ' + filePath;
+
+  const existing = tabs.find(function(t) { return t.filePath === cacheKey; });
+  if (existing) {
+    switchToTab(existing.id);
+  } else {
+    const id = ++tabCounter;
+    tabs.push({
+      id: id,
+      filePath: cacheKey,
+      name: displayName,
+      content: content,
+      language: lang,
+      modified: false,
+      viewState: null,
+    });
+    switchToTab(id);
+    updateTabUI();
+    autoSaveSession();
+  }
+}
+
+function closeArchivePanel() {
+  currentArchive = null;
+  archiveFileContentCache.clear();
+  document.getElementById('archive-panel').classList.add('hidden');
+}
+
+document.getElementById('archive-close').addEventListener('click', closeArchivePanel);
+
+
 document.getElementById('compare-close').addEventListener('click', closeCompareMode);

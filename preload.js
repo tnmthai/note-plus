@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('api', {
   saveSessionSync: (data) => ipcRenderer.sendSync('save-session-sync', data),
   loadSession: () => ipcRenderer.invoke('load-session'),
 
+  // Archive
+  readArchive: (archivePath) => ipcRenderer.invoke('read-archive', archivePath),
+  readArchiveFile: (archivePath, filePath) => ipcRenderer.invoke('read-archive-file', { archivePath, filePath }),
+
   // Window controls
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
