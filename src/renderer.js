@@ -572,6 +572,21 @@ document.addEventListener('DOMContentLoaded', () => {
 // Register menu handlers
 window.api.onMenuNew(() => createNewTab());
 window.api.onMenuOpen(() => openFile());
+window.api.onOpenFileFromArgs(async (filePath) => {
+  if (isArchiveFile(filePath)) {
+    openArchive(filePath);
+  } else if (isDocumentFile(filePath)) {
+    const ext = filePath.split('.').pop().toLowerCase();
+    await openDocument(filePath, ext);
+  } else {
+    const result = await window.api.readFile(filePath);
+    if (result.content !== null) {
+      const lang = detectLanguage(filePath);
+      createNewTab(filePath, result.content, lang);
+    }
+  }
+});
+
 window.api.onMenuOpenFile(async (filePath) => {
   // Check if it's an archive
   if (isArchiveFile(filePath)) {

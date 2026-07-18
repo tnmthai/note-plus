@@ -10,6 +10,18 @@ let mainWindow;
 let openFiles = new Map(); // path -> { content, mtime }
 let updateDownloaded = false;
 
+// Get file path from command line arguments (for "Open with" context menu)
+function getFilePathFromArgs(argv) {
+  // On Windows, argv may have quotes; filter out app path and flags
+  const args = argv.slice(1); // skip exe path
+  for (const arg of args) {
+    if (!arg.startsWith('-') && fs.existsSync(arg)) {
+      return arg;
+    }
+  }
+  return null;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -535,7 +547,33 @@ ipcMain.handle('render-document', async (event, { filePath, docType }) => {
 });
 
 
-app.whenReady().then(createWindow);
+// Prevent multiple instances and handle "Open with" when app is already running
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, argv) => {
+    const filePath = getFilePathFromArgs(argv);
+    if (filePath && mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      mainWindow.webContents.send('open-file-from-args', filePath);
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+
+    // Handle file passed via command line on first launch
+    const filePath = getFilePathFromArgs(process.argv);
+    if (filePath) {
+      // Wait for window to be ready, then send file path
+      mainWindow.webContents.on('did-finish-load', () => {
+        mainWindow.webContents.send('open-file-from-args', filePath);
+      });
+    }
+  });
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

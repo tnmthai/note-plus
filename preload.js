@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('api', {
   onMenuNew: (cb) => ipcRenderer.on('menu-new', cb),
   onMenuOpen: (cb) => ipcRenderer.on('menu-open', cb),
   onMenuOpenFile: (cb) => ipcRenderer.on('menu-open-file', (e, path) => cb(path)),
+  onOpenFileFromArgs: (cb) => ipcRenderer.on('open-file-from-args', (e, filePath) => cb(filePath)),
   onMenuSave: (cb) => ipcRenderer.on('menu-save', cb),
   onMenuSaveAs: (cb) => ipcRenderer.on('menu-save-as', cb),
   onMenuPrint: (cb) => ipcRenderer.on('menu-print', cb),
